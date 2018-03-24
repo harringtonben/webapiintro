@@ -14,14 +14,33 @@ namespace MyFirstWebApi.Controllers
     [RoutePrefix("orderapi/pizza")]
     public class PizzaController : ApiController
     {
-        [HttpPost,Route("{id}")]
-        public HttpResponseMessage PlaceOrder(int id)
+        [HttpPost,Route("")]
+        public HttpResponseMessage PlaceOrder(OrderDto newOrder)
         {
-            if (id == 10)
+            using (var db = new SqlConnection(ConfigurationManager.ConnectionStrings["PizzaTime"].ConnectionString))
             {
-                return Request.CreateResponse(HttpStatusCode.BadRequest, "No order with that id was found");
+                db.Open();
+
+                var order = new Order
+                {
+                    NumberOfPizzas = newOrder.NumberOfPizzas,
+                    TypeOfPizza = newOrder.TypeOfPizza,
+                    AddressForDelivery = newOrder.AddressForDelivery,
+                    NameOfCustomer = newOrder.NameOfCustomer,
+                    Cost = 10*newOrder.NumberOfPizzas
+                };
+
+                var createOrder = db.Execute(@"insert into Orders (TypeOfPizza,NumberOfPizzas,Cost,AddressForDelivery,NameOfCustomer)
+                                         Values(@TypeOfPizza,@NumberOfPizzas,@Cost,@AddressForDelivery,@NameOfCustomer)", order);
+
+                if (createOrder == 1)
+                {
+                    return Request.CreateResponse(HttpStatusCode.Created);
+                }
+
+                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, "Could not process your order, try again later");
             }
-            return Request.CreateResponse(HttpStatusCode.Created, 5);
+            
         }
 
         [HttpGet,Route("")]
