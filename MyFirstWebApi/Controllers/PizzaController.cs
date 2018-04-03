@@ -1,5 +1,6 @@
 ﻿using Dapper;
 using MyFirstWebApi.Models;
+using MyFirstWebApi.Services;
 using System;
 using System.Collections.Generic;
 using System.Configuration;
@@ -14,36 +15,29 @@ namespace MyFirstWebApi.Controllers
     [RoutePrefix("orderapi/pizza")]
     public class PizzaController : ApiController
     {
-        [HttpPost,Route("")]
+        [HttpPost, Route("")]
         public HttpResponseMessage PlaceOrder(OrderDto newOrder)
         {
-            using (var db = new SqlConnection(ConfigurationManager.ConnectionStrings["PizzaTime"].ConnectionString))
+
+            var order = new Order
             {
-                db.Open();
+                NumberOfPizzas = newOrder.NumberOfPizzas,
+                TypeOfPizza = newOrder.TypeOfPizza,
+                AddressForDelivery = newOrder.AddressForDelivery,
+                NameOfCustomer = newOrder.NameOfCustomer,
+                Cost = 10 * newOrder.NumberOfPizzas
+            };
 
-                var order = new Order
-                {
-                    NumberOfPizzas = newOrder.NumberOfPizzas,
-                    TypeOfPizza = newOrder.TypeOfPizza,
-                    AddressForDelivery = newOrder.AddressForDelivery,
-                    NameOfCustomer = newOrder.NameOfCustomer,
-                    Cost = 10*newOrder.NumberOfPizzas
-                };
+            var orderService = new OrderPizzaService();
+            var success = orderService.OrderPizza(order);
 
-                var createOrder = db.Execute(@"insert into Orders (TypeOfPizza,NumberOfPizzas,Cost,AddressForDelivery,NameOfCustomer)
-                                         Values(@TypeOfPizza,@NumberOfPizzas,@Cost,@AddressForDelivery,@NameOfCustomer)", order);
+            if (success)
+                return Request.CreateResponse(HttpStatusCode.Created);
 
-                if (createOrder == 1)
-                {
-                    return Request.CreateResponse(HttpStatusCode.Created);
-                }
-
-                return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, "Could not process your order, try again later");
-            }
-            
+            return Request.CreateErrorResponse(HttpStatusCode.InternalServerError, "Could not process your order, try again later");
         }
 
-        [HttpGet,Route("")]
+        [HttpGet, Route("")]
         public HttpResponseMessage GetAllOrders()
         {
             using (var db = new SqlConnection(ConfigurationManager.ConnectionStrings["PizzaTime"].ConnectionString))
@@ -64,9 +58,22 @@ namespace MyFirstWebApi.Controllers
             {
                 db.Open();
 
-                var order = db.QueryFirst<Order>("select * from Orders where Id = @id", new {id});
+                var order = db.QueryFirst<Order>("select * from Orders where Id = @id", new { id });
 
-                return Request.CreateResponse(HttpStatusCode.OK, order); 
+                return Request.CreateResponse(HttpStatusCode.OK, order);
+            }
+        }
+
+        [HttpGet, Route("")]
+        public HttpResponseMessage GetOrderByPizzaType(string TypeOfPizza)
+        {
+            using (var db = new SqlConnection(ConfigurationManager.ConnectionStrings["PizzaTime"].ConnectionString))
+            {
+                db.Open();
+
+                var order = db.Query<Order>("select * from Orders where typeofpizza = @TypeOfPizza", new { TypeOfPizza });
+
+                return Request.CreateResponse(HttpStatusCode.OK, order);
             }
         }
     }
